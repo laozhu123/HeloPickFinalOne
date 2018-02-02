@@ -4,6 +4,7 @@ import os
 import urllib
 from urllib import request
 import threading
+import threadpool
 
 
 class mzitu():
@@ -15,15 +16,21 @@ class mzitu():
         html = self.request(url)  ##调用request函数把套图地址传进去会返回给我们一个response
         all_a = BeautifulSoup(html.text, 'lxml').find('div', class_='all').find_all('a')
 
-        for a in all_a:
-            if self.num >= 50:
-                self.cv.acquire()
-                self.cv.wait()
-                self.cv.release()
-            self.num = self.num + 1
-            t = threading.Thread(target=self.nice, args=(
-                a,))  # cloudquery是指每个线程干的活，
-            t.start()  # 启动线程
+        task_pool = threadpool.ThreadPool(50)
+        requests = threadpool.makeRequests(self.nice, all_a)
+        for req in requests:
+            task_pool.putRequest(req)
+        task_pool.wait()
+
+        # for a in all_a:
+        #     if self.num >= 50:
+        #         self.cv.acquire()
+        #         self.cv.wait()
+        #         self.cv.release()
+        #     self.num = self.num + 1
+        #     t = threading.Thread(target=self.nice, args=(
+        #         a,))  # cloudquery是指每个线程干的活，
+        #     t.start()  # 启动线程
 
     def nice(self, a):
         title = a.get_text()
@@ -32,10 +39,10 @@ class mzitu():
             os.chdir("e:\\pic\\" + path)  ##切换到目录
             href = a['href']
             self.html(href, "e:\\pic\\" + path)  ##调用html函数把href参数传递过去！href是啥还记的吧？ 就是套图的地址哦！！不要迷糊了哦！
-        self.num = self.num - 1
-        self.cv.acquire()
-        self.cv.notify()
-        self.cv.release()
+            # self.num = self.num - 1
+            # self.cv.acquire()
+            # self.cv.notify()
+            # self.cv.release()
 
     def html(self, href, path):  ##这个函数是处理套图地址获得图片的页面地址
         html = self.request(href)
